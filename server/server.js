@@ -1,54 +1,3 @@
-// import express from "express";
-// import "dotenv/config";
-// import cors from "cors";
-// import connectDB from "./configs/db.js";
-
-// import userRouter from "./routes/userRoutes.js";
-// import chatRouter from "./routes/chatRoutes.js";
-// import messageRouter from "./routes/messageRoutes.js";
-// import creditRouter from "./routes/creditRoutes.js";
-// import { stripeWebhooks } from "./controllers/webhooks.js";
-
-// const app = express();
-
-// const allowedOrigins = [
-//     "https://flash-gpt-ruby.vercel.app"
-// ];
-
-// app.use(cors({
-//     origin: function (origin, callback) {
-//         if (!origin) return callback(null, true);
-//         if (allowedOrigins.includes(origin)) return callback(null, true);
-//         return callback(new Error("Not allowed by CORS"));
-//     },
-//     credentials: true,
-//     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-//     allowedHeaders: ["Content-Type", "Authorization"]
-// }));
-
-
-
-// app.options("*", cors());
-
-// await connectDB();
-
-// app.post(
-//     "/api/stripe",
-//     express.raw({ type: "application/json" }),
-//     stripeWebhooks
-// );
-
-// app.use(express.json());
-
-// app.get("/", (req, res) => res.send("Server is Live!"));
-// app.use("/api/user", userRouter);
-// app.use("/api/chat", chatRouter);
-// app.use("/api/message", messageRouter);
-// app.use("/api/credit", creditRouter);
-
-// export default app;
-
-
 import express from 'express'
 import 'dotenv/config'
 import cors from 'cors'
@@ -59,20 +8,37 @@ import messageRouter from './routes/messageRoutes.js'
 import creditRouter from './routes/creditRoutes.js'
 import { stripeWebhooks } from './controllers/webhooks.js'
 
+import mongoose from 'mongoose'
+
 const app = express()
 
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    credentials: true
+}))
 
-await connectDB()
+// Connect to Database asynchronously
+connectDB().catch(err => console.error("Initial DB connect error:", err.message))
 
-// Stripe Webhooks
 app.post('/api/stripe', express.raw({type: 'application/json'}), stripeWebhooks)
 
-// Middleware
 app.use(express.json())
 
-// Routes
-app.get('/', (req, res)=> res.send('Server is Live!'))
+// Middleware to ensure DB connection is ready on API requests
+app.use('/api', async (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        await connectDB()
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({
+                success: false,
+                message: "Database connection unavailable. Please ensure MongoDB Atlas Network Access whitelist has 0.0.0.0/0 (Allow Access from Anywhere) enabled."
+            })
+        }
+    }
+    next()
+})
+
+app.get('/', (req, res) => res.send('Server is Live!'))
 app.use('/api/user', userRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/message', messageRouter)
@@ -80,68 +46,10 @@ app.use('/api/credit', creditRouter)
 
 const PORT = process.env.PORT || 3000
 
-app.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`)
-})
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`)
+    })
+}
 
-// import express from "express";
-// import "dotenv/config";
-// import cors from "cors";
-// import connectDB from "./configs/db.js";
-
-// import userRouter from "./routes/userRoutes.js";
-// import chatRouter from "./routes/chatRoutes.js";
-// import messageRouter from "./routes/messageRoutes.js";
-// import creditRouter from "./routes/creditRoutes.js";
-// import { stripeWebhooks } from "./controllers/webhooks.js";
-
-// const app = express();
-
-// await connectDB();
-
-// // 🔥 FORCE CORS HEADERS (Vercel fix)
-// app.use((req, res, next) => {
-//     res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-//     res.header(
-//         "Access-Control-Allow-Headers",
-//         "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-//     );
-//     res.header(
-//         "Access-Control-Allow-Methods",
-//         "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-//     );
-//     res.header("Access-Control-Allow-Credentials", "true");
-
-//     if (req.method === "OPTIONS") {
-//         return res.sendStatus(204);
-//     }
-
-//     next();
-// });
-
-// // Normal cors (still needed)
-// app.use(
-//     cors({
-//         origin: true,
-//         credentials: true,
-//     })
-// );
-
-// // Stripe webhook (raw body)
-// app.post(
-//     "/api/stripe",
-//     express.raw({ type: "application/json" }),
-//     stripeWebhooks
-// );
-
-// // JSON AFTER webhook
-// app.use(express.json());
-
-// // Routes
-// app.get("/", (req, res) => res.send("Server is Live!"));
-// app.use("/api/user", userRouter);
-// app.use("/api/chat", chatRouter);
-// app.use("/api/message", messageRouter);
-// app.use("/api/credit", creditRouter);
-
-// export default app; // 🔥 IMPORTANT FOR VERCEL
+export default app

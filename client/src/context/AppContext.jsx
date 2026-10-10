@@ -4,7 +4,8 @@ import { dummyChats, dummyUserData } from "../assets/assets";
 import axios from 'axios';
 import toast from "react-hot-toast";
 
-axios.defaults.baseURL = import.meta.env.VITE_SERVER_URL;
+const rawServerUrl = import.meta.env.VITE_SERVER_URL || '';
+axios.defaults.baseURL = rawServerUrl.endsWith('/') ? rawServerUrl.slice(0, -1) : rawServerUrl;
 
 
 const AppContext = createContext()
@@ -26,9 +27,15 @@ export const AppContextProvider = ({ children })=>{
                 setUser(data.user)
             }else{
                 toast.error(data.message)
+                setToken(null)
+                localStorage.removeItem('token')
             }
         } catch (error) {
-            toast.error(error.message)
+            toast.error(error.response?.data?.message || error.message)
+            if(error.response?.status === 401){
+                setToken(null)
+                localStorage.removeItem('token')
+            }
         }finally{
             setLoadingUser(false)
         }

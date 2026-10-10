@@ -8,7 +8,7 @@ const ChatBox = () => {
 
     const containerRef = useRef(null)
 
-    const {selectedChat, theme, user, axios, token, setUser} = useAppContext()
+    const {selectedChat, theme, user, axios, token, setUser, fetchUsersChats, setSelectedChat} = useAppContext()
 
     const [messages, setMessages] = useState([])
     const [loading, setLoading] = useState(false)
@@ -24,9 +24,9 @@ const ChatBox = () => {
             setLoading(true)
             const promptCopy = prompt
             setPrompt('')
-            setMessages(prev => [...prev, {role: 'user', content: prompt, timestamp: Date.now(), isImage: false}])
+            setMessages(prev => [...prev, {role: 'user', content: promptCopy, timestamp: Date.now(), isImage: false}])
 
-            const { data } = await axios.post(`/api/message/${mode}`, {chatId: selectedChat._id, prompt, isPublished}, {headers: {Authorization: token }})
+            const { data } = await axios.post(`/api/message/${mode}`, {chatId: selectedChat?._id, prompt: promptCopy, isPublished}, {headers: {Authorization: token }})
 
             if(data.success){
                 setMessages(prev => [...prev, data.reply])
@@ -36,12 +36,15 @@ const ChatBox = () => {
                 }else{
                     setUser(prev => ({...prev, credits: prev.credits - 1}))
                 }
+                if(fetchUsersChats){
+                    fetchUsersChats()
+                }
             }else{
                 toast.error(data.message)
                 setPrompt(promptCopy)
             }
         } catch (error) {
-            toast.error(error.message)
+            toast.error(error.response?.data?.message || error.message)
         }finally{
             setPrompt('')
             setLoading(false)

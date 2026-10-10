@@ -1,0 +1,14 @@
+{
+  "name": "flashgpt-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "client:dev": "npm run dev --prefix client",
+    "client:build": "npm run build --prefix client",
+    "server:dev": "npm run server --prefix server",
+    "server:start": "npm run start --prefix server",
+    "install:all": "npm install --prefix client && npm install --prefix server",
+    "build": "npm run build --prefix client",
+    "start": "npm run start --prefix server"
+  }
+}

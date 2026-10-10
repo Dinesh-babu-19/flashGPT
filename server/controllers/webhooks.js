@@ -23,7 +23,7 @@ export const stripeWebhooks = async (request, response) => {
 
                 const { transactionId, appId } = session.metadata;
 
-                if (appId === "FLASHGPT" || appId==='flashgpt' || appId === "quickgpt") {
+                if (appId === "FLASHGPT" || appId==='flashgpt') {
                     const transaction = await Transaction.findOne({ _id: transactionId, isPaid: false });
                     if (!transaction) break;
 

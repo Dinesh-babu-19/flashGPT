@@ -2,11 +2,7 @@ import axios from "axios"
 import Chat from "../models/Chat.js"
 import User from "../models/User.js"
 import imagekit from "../configs/imagekit.js"
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
-});
+import { generateText } from "../configs/gemini.js"
 
 
 // Text-based AI Chat Message Controller
@@ -32,12 +28,22 @@ export const textMessageController = async (req, res) => {
             });
         }
 
-        // Find chat
-        const chat = await Chat.findOne({ _id: chatId, userId });
+        // Find or create chat
+        let chat = null;
+        if (chatId) {
+            try {
+                chat = await Chat.findOne({ _id: chatId, userId });
+            } catch (err) {
+                // Invalid chatId fallback
+            }
+        }
+
         if (!chat) {
-            return res.status(404).json({
-                success: false,
-                message: "Chat not found",
+            chat = await Chat.create({
+                userId,
+                userName: req.user.name,
+                name: prompt.trim().slice(0, 30) || "New Chat",
+                messages: []
             });
         }
 
@@ -49,16 +55,8 @@ export const textMessageController = async (req, res) => {
             isImage: false,
         });
 
-        // Groq LLM call
-        const completion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile", // 🔥 Best quality
-            messages: [
-                { role: "system", content: "You are a helpful AI assistant." },
-                { role: "user", content: prompt },
-            ],
-        });
-
-        const replyText = completion.choices[0].message.content;
+        // Gemini call (free tier, stable models with fallback)
+        const { text: replyText } = await generateText(prompt);
 
         const reply = {
             role: "assistant",
@@ -84,50 +82,14 @@ export const textMessageController = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Groq controller error:", error);
-        res.status(500).json({
+        console.error("Gemini controller error:", error);
+        res.status(error?.status || 500).json({
             success: false,
-            message: "Internal server error",
+            message: error?.message || "Internal server error",
         });
     }
 };
 
-
-// export const textMessageController = async (req, res) => {
-//     try {
-//         const userId = req.user._id
-
-//         // Check credits
-//         if(req.user.credits < 1){
-//             return res.json({success: false, message: "You don't have enough credits to use this feature!"})
-//         }
-
-//         const { chatId, prompt } = req.body
-
-//         const chat = await Chat.findOne({ userId, _id: chatId })
-//         chat.messages.push({ role: "user", content: prompt, timestamp: Date.now(), isImage: false })
-
-//         const { choices } = await openai.chat.completions.create({
-//             model: "gemini-2.0-flash",
-//             messages: [
-//                 {
-//                     role: "user",
-//                     content: prompt,
-//                 },
-//             ],
-//         });
-
-//         const reply = { ...choices[0].message, timestamp: Date.now(), isImage: false }
-//         res.json({success: true, reply})
-
-//         chat.messages.push(reply)
-//         await chat.save()
-//         await User.updateOne({_id: userId}, {$inc: {credits: -1}})
-
-//     } catch (error) {
-//         res.json({success: false, message: error.message})
-//     }
-// }
 
 // Image Generation Message Controller
 export const imageMessageController = async (req, res) => {
@@ -142,8 +104,24 @@ export const imageMessageController = async (req, res) => {
         }
 
         const {prompt, chatId, isPublished} = req.body
-        // Find chat
-        const chat = await Chat.findOne({userId, _id: chatId})
+        // Find or create chat
+        let chat = null;
+        if (chatId) {
+            try {
+                chat = await Chat.findOne({userId, _id: chatId});
+            } catch (err) {
+                // Invalid chatId fallback
+            }
+        }
+
+        if (!chat) {
+            chat = await Chat.create({
+                userId,
+                userName: req.user.name,
+                name: prompt.trim().slice(0, 30) || "Image Generation",
+                messages: []
+            });
+        }
 
         // Push user message
         chat.messages.push({ 
@@ -184,7 +162,7 @@ export const imageMessageController = async (req, res) => {
         chat.messages.push(reply)
         await chat.save()
 
-        await User.updateOne({_id: userId}, {$inc: {credits: -2}})
+        await User.updateOne({_id: userId}, { $inc: {credits: -2} })
 
         
             

@@ -18,7 +18,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
     const deleteChat = async (e, chatId) => {
         try {
             e.stopPropagation()
-            const confirm = window.confirm('Are you shure you want to delete this chat?')
+            const confirm = window.confirm('Are you sure you want to delete this chat?')
             if(!confirm) return
             const { data } = await axios.post('/api/chat/delete', {chatId}, {headers: {Authorization: token}})
             if(data.success){
@@ -27,7 +27,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
                 toast.success(data.message)
             }
         } catch (error) {
-            toast.success(error.message)
+            toast.error(error.response?.data?.message || error.message)
         }
     }
 
