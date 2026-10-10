@@ -25,17 +25,20 @@ app.post('/api/stripe', express.raw({type: 'application/json'}), stripeWebhooks)
 app.use(express.json())
 
 // Middleware to ensure DB connection is ready on API requests
-app.use('/api', async (req, res, next) => {
-    if (mongoose.connection.readyState !== 1) {
-        await connectDB()
-        if (mongoose.connection.readyState !== 1) {
-            return res.status(503).json({
-                success: false,
-                message: "Database connection unavailable. Please ensure MongoDB Atlas Network Access whitelist has 0.0.0.0/0 (Allow Access from Anywhere) enabled."
-            })
-        }
+app.use(async (req, res, next) => {
+    if (req.path === '/api/stripe' || req.path === '/') {
+        return next()
     }
-    next()
+    try {
+        await connectDB()
+        next()
+    } catch (err) {
+        console.error("DB connection error in request:", err.message)
+        return res.status(503).json({
+            success: false,
+            message: "Database connection failed. Please ensure MONGODB_URI is set correctly in Vercel environment variables and MongoDB Atlas allows 0.0.0.0/0."
+        })
+    }
 })
 
 app.get('/', (req, res) => res.send('Server is Live!'))
